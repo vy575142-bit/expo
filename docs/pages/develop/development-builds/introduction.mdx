@@ -1,4 +1,587 @@
----
+--
+import React, { useState } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, SafeAreaView, StatusBar,
+  Modal, TextInput, Alert
+} from 'react-native';
+
+const TOURNAMENTS = [
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10501',
+    name: 'Neon Clash Open Cup',
+    dayOffset: 0,
+    hour: 20,
+    minute: 30,
+    mode: 'solo',
+    prize: '₹500',
+    slots: 48,
+    left: 12,
+    status: 'upcoming',
+    rules: [
+      'Free Fire MAX · Solo battle royale',
+      'Use your registered player nickname and UID.',
+      'Join the room before the match begins.',
+      'Room ID and password appear for registered players.'
+    ]
+  },
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10502',
+    name: 'Squad Scrim: Bermuda Rush',
+    dayOffset: 0,
+    hour: 20,
+    minute: 45,
+    mode: 'squad',
+    prize: '₹2,500',
+    slots: 48,
+    left: 4,
+    status: 'upcoming',
+    rules: [
+      'Free Fire MAX · Squad battle royale',
+      'Use your registered player nickname and UID.'
+    ]
+  },
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10503',
+    name: 'Duo Nightfall Series',
+    dayOffset: 2,
+    hour: 19,
+    minute: 0,
+    mode: 'duo',
+    prize: '₹3,000',
+    slots: 32,
+    left: 16,
+    status: 'upcoming',
+    rules: [
+      'Free Fire MAX · Duo qualifiers',
+      'Join the room before the match begins.'
+    ]
+  },
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10504',
+    name: 'Solo Headshot Challenge',
+    dayOffset: 3,
+    hour: 21,
+    minute: 15,
+    mode: 'solo',
+    prize: '₹1,500',
+    slots: 48,
+    left: 19,
+    status: 'upcoming',
+    rules: [
+      'Free Fire MAX · Solo battle royale',
+      'Only registered players may enter.'
+    ]
+  },
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10505',
+    name: 'Midnight Drop: Solo',
+    dayOffset: -4,
+    hour: 21,
+    minute: 0,
+    mode: 'solo',
+    prize: '₹1,500',
+    slots: 48,
+    left: 0,
+    status: 'completed',
+    rules: []
+  },
+  {
+    id: '275f2f28-aaf3-45ab-9d0b-931eaed10506',
+    name: 'Bermuda Breakout',
+    dayOffset: -6,
+    hour: 20,
+    minute: 0,
+    mode: 'squad',
+    prize: '₹2,000',
+    slots: 48,
+    left: 0,
+    status: 'completed',
+    rules: []
+  }
+];
+
+const COLORS = {
+  bg: '#080A10',
+  card: '#141824',
+  red: '#FF263C',
+  white: '#FFFFFF',
+  muted: '#9298A8',
+  green: '#22D68A',
+  border: '#292E3D',
+  gold: '#FFCC55'
+};
+
+function getMatchDate(offset, hour, minute) {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  date.setHours(hour, minute, 0, 0);
+  return date;
+}
+
+function formatDate(offset, hour, minute) {
+  const date = getMatchDate(offset, hour, minute);
+  if (offset === 0) return 'Today';
+  if (offset === 1) return 'Tomorrow';
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short'
+  });
+}
+
+function App() {
+  const [tab, setTab] = useState('Home');
+  const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [tournaments, setTournaments] = useState(TOURNAMENTS);
+  const [registered, setRegistered] = useState([]);
+  const [nickname, setNickname] = useState('');
+  const [uid, setUid] = useState('');
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const upcoming = tournaments.filter(t => t.status === 'upcoming');
+  const completed = tournaments.filter(t => t.status === 'completed');
+
+  const visible = tournaments.filter(t => {
+    if (tab === 'Tournaments') {
+      if (filter === 'upcoming') return t.status === 'upcoming';
+      if (filter === 'completed') return t.status === 'completed';
+      if (filter !== 'all') return t.mode === filter;
+      return true;
+    }
+    return t.status === 'upcoming';
+  });
+
+  const isRegistered = id => registered.includes(id);
+
+  const joinTournament = (item) => {
+    if (!nickname.trim() || !uid.trim()) {
+      Alert.alert('Profile required', 'Please enter your nickname and Free Fire UID in your Profile first.');
+      setSelected(null);
+      setTab('Profile');
+      return;
+    }
+
+    if (isRegistered(item.id)) {
+      Alert.alert('Already registered', 'You have already joined this tournament.');
+      return;
+    }
+
+    if (item.left <= 0) {
+      Alert.alert('Slots full', 'Sorry, no slots are available.');
+      return;
+    }
+
+    setRegistered(prev => [...prev, item.id]);
+    setTournaments(prev => prev.map(t =>
+      t.id === item.id ? { ...t, left: t.left - 1 } : t
+    ));
+
+    Alert.alert('Registration successful!', 'You have joined ' + item.name);
+    setSelected(null);
+  };
+
+  const saveProfile = () => {
+    if (!nickname.trim() || !uid.trim()) {
+      Alert.alert('Missing details', 'Enter both nickname and UID.');
+      return;
+    }
+    setProfileSaved(true);
+    Alert.alert('Success', 'Your player profile has been saved.');
+  };
+
+  const Header = () => (
+    <View style={styles.header}>
+      <View>
+        <Text style={styles.brand}>CM <Text style={{color: COLORS.red}}>ESPORTS</Text></Text>
+        <Text style={styles.tagline}>PLAY • COMPETE • WIN</Text>
+      </View>
+      <View style={styles.liveBadge}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>ARENA LIVE</Text>
+      </View>
+    </View>
+  );
+
+  const TournamentCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.tournamentCard}
+      activeOpacity={0.85}
+      onPress={() => setSelected(item)}
+    >
+      <View style={styles.cardTop}>
+        <View style={styles.modeBadge}>
+          <Text style={styles.modeText}>{item.mode.toUpperCase()}</Text>
+        </View>
+        <Text style={[
+          styles.status,
+          { color: item.status === 'upcoming' ? COLORS.green : COLORS.muted }
+        ]}>
+          {item.status === 'upcoming' ? '● UPCOMING' : '● COMPLETED'}
+        </Text>
+      </View>
+
+      <Text style={styles.tournamentName}>{item.name}</Text>
+      <Text style={styles.gameName}>FREE FIRE MAX</Text>
+
+      <View style={styles.cardInfo}>
+        <View>
+          <Text style={styles.infoLabel}>PRIZE POOL</Text>
+          <Text style={styles.prize}>{item.prize}</Text>
+        </View>
+        <View>
+          <Text style={styles.infoLabel}>MATCH TIME</Text>
+          <Text style={styles.infoValue}>
+            {formatDate(item.dayOffset, item.hour, item.minute)} • {String(item.hour).padStart(2,'0')}:{String(item.minute).padStart(2,'0')}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.slotRow}>
+        <Text style={styles.slotText}>
+          {item.status === 'upcoming'
+            ? `${item.left}/${item.slots} slots available`
+            : 'Match completed'}
+        </Text>
+        <Text style={styles.viewText}>VIEW DETAILS →</Text>
+      </View>
+
+      {item.status === 'upcoming' && (
+        <View style={styles.progressBg}>
+          <View style={[
+            styles.progressFill,
+            { width: `${Math.max(0, ((item.slots - item.left) / item.slots) * 100)}%` }
+          ]} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor={COLORS.bg} barStyle="light-content" />
+
+      <Header />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {tab === 'Home' && (
+          <View style={styles.content}>
+            <View style={styles.hero}>
+              <Text style={styles.heroSmall}>WELCOME TO</Text>
+              <Text style={styles.heroTitle}>CM ESPORTS</Text>
+              <Text style={styles.heroSubtitle}>
+                YOUR SKILL. YOUR GAME. YOUR GLORY.
+              </Text>
+              <TouchableOpacity
+                style={styles.heroButton}
+                onPress={() => setTab('Tournaments')}
+              >
+                <Text style={styles.heroButtonText}>EXPLORE TOURNAMENTS →</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{upcoming.length}</Text>
+                <Text style={styles.statLabel}>UPCOMING</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{completed.length}</Text>
+                <Text style={styles.statLabel}>COMPLETED</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{registered.length}</Text>
+                <Text style={styles.statLabel}>MY MATCHES</Text>
+              </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>UPCOMING MATCHES</Text>
+              <TouchableOpacity onPress={() => setTab('Tournaments')}>
+                <Text style={styles.seeAll}>SEE ALL →</Text>
+              </TouchableOpacity>
+            </View>
+
+            {upcoming.map(item => (
+              <TournamentCard key={item.id} item={item} />
+            ))}
+          </View>
+        )}
+
+        {tab === 'Tournaments' && (
+          <View style={styles.content}>
+            <Text style={styles.pageTitle}>TOURNAMENTS</Text>
+            <Text style={styles.pageSubtitle}>Choose your battle arena</Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.filterRow}>
+                {['all', 'upcoming', 'completed', 'solo', 'duo', 'squad'].map(f => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[styles.filterButton, filter === f && styles.activeFilter]}
+                    onPress={() => setFilter(f)}
+                  >
+                    <Text style={[
+                      styles.filterText,
+                      filter === f && styles.activeFilterText
+                    ]}>
+                      {f.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {visible.map(item => (
+              <TournamentCard key={item.id} item={item} />
+            ))}
+            {visible.length === 0 && (
+              <Text style={styles.emptyText}>No tournaments found.</Text>
+            )}
+          </View>
+        )}
+
+        {tab === 'Profile' && (
+          <View style={styles.content}>
+            <Text style={styles.pageTitle}>PLAYER PROFILE</Text>
+            <View style={styles.profileCard}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>CM</Text>
+              </View>
+              <Text style={styles.profileTitle}>
+                {nickname || 'GAMER NAME'}
+              </Text>
+              <Text style={styles.profileSub}>
+                {profileSaved ? 'PLAYER PROFILE SAVED' : 'COMPLETE YOUR PLAYER PROFILE'}
+              </Text>
+
+              <Text style={styles.inputLabel}>PLAYER NICKNAME</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter Free Fire nickname"
+                placeholderTextColor={COLORS.muted}
+                value={nickname}
+                onChangeText={setNickname}
+              />
+
+              <Text style={styles.inputLabel}>FREE FIRE UID</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your game UID"
+                placeholderTextColor={COLORS.muted}
+                keyboardType="numeric"
+                value={uid}
+                onChangeText={setUid}
+              />
+
+              <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
+                <Text style={styles.saveButtonText}>SAVE PROFILE</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionTitle}>MY REGISTRATIONS</Text>
+            {tournaments.filter(t => isRegistered(t.id)).map(item => (
+              <TournamentCard key={item.id} item={item} />
+            ))}
+            {registered.length === 0 && (
+              <Text style={styles.emptyText}>
+                You haven't joined any tournament yet.
+              </Text>
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={styles.bottomNav}>
+        {[
+          { name: 'Home', icon: '⌂' },
+          { name: 'Tournaments', icon: '🏆' },
+          { name: 'Profile', icon: '👤' }
+        ].map(item => (
+          <TouchableOpacity
+            key={item.name}
+            style={styles.navItem}
+            onPress={() => setTab(item.name)}
+          >
+            <Text style={[
+              styles.navIcon,
+              { color: tab === item.name ? COLORS.red : COLORS.muted }
+            ]}>
+              {item.icon}
+            </Text>
+            <Text style={[
+              styles.navText,
+              { color: tab === item.name ? COLORS.red : COLORS.muted }
+            ]}>
+              {item.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Modal
+        visible={!!selected}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelected(null)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalCard}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setSelected(null)}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+
+            {selected && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalCategory}>
+                  {selected.mode.toUpperCase()} BATTLE
+                </Text>
+                <Text style={styles.modalTitle}>{selected.name}</Text>
+
+                <View style={styles.modalPrizeBox}>
+                  <Text style={styles.infoLabel}>WINNING PRIZE</Text>
+                  <Text style={styles.modalPrize}>{selected.prize}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Game</Text>
+                  <Text style={styles.detailValue}>Free Fire MAX</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Mode</Text>
+                  <Text style={styles.detailValue}>
+                    {selected.mode.toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>
+                    {formatDate(selected.dayOffset, selected.hour, selected.minute)}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Time</Text>
+                  <Text style={styles.detailValue}>
+                    {String(selected.hour).padStart(2,'0')}:{String(selected.minute).padStart(2,'0')}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Slots left</Text>
+                  <Text style={styles.detailValue}>
+                    {selected.left}/{selected.slots}
+                  </Text>
+                </View>
+
+                <Text style={styles.rulesTitle}>TOURNAMENT RULES</Text>
+                {selected.rules.map((rule, index) => (
+                  <Text key={index} style={styles.ruleText}>
+                    {index + 1}. {rule}
+                  </Text>
+                ))}
+
+                {selected.status === 'upcoming' ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.joinButton,
+                      (isRegistered(selected.id) || selected.left <= 0) && { opacity: 0.5 }
+                    ]}
+                    onPress={() => joinTournament(selected)}
+                  >
+                    <Text style={styles.joinButtonText}>
+                      {isRegistered(selected.id)
+                        ? 'ALREADY REGISTERED'
+                        : selected.left <= 0 ? 'SLOTS FULL' : 'JOIN TOURNAMENT'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.completedButton}>
+                    <Text style={styles.completedText}>MATCH COMPLETED</Text>
+                  </View>
+                )}
+
+                <Text style={styles.note}>
+                  Note: Room ID and password are not connected yet.
+                </Text>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    paddingHorizontal: 20, paddingVertical: 15,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', borderBottomWidth: 1,
+    borderBottomColor: COLORS.border
+  },
+  brand: { color: COLORS.white, fontSize: 23, fontWeight: '900', letterSpacing: 1 },
+  tagline: { color: COLORS.muted, fontSize: 9, letterSpacing: 2, marginTop: 3 },
+  liveBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1B302A', padding: 9, borderRadius: 20
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 5, backgroundColor: COLORS.green, marginRight: 6 },
+  liveText: { color: COLORS.green, fontSize: 9, fontWeight: 'bold' },
+  content: { padding: 18, paddingBottom: 30 },
+  hero: {
+    backgroundColor: '#25131B', borderRadius: 18,
+    padding: 23, borderWidth: 1, borderColor: '#6D2534',
+    marginBottom: 17
+  },
+  heroSmall: { color: COLORS.muted, fontSize: 11, letterSpacing: 3 },
+  heroTitle: { color: COLORS.white, fontSize: 34, fontWeight: '900', marginTop: 7 },
+  heroSubtitle: { color: '#FF8996', fontSize: 10, letterSpacing: 1, marginTop: 6 },
+  heroButton: {
+    backgroundColor: COLORS.red, borderRadius: 8,
+    padding: 14, alignItems: 'center', marginTop: 22
+  },
+  heroButtonText: { color: COLORS.white, fontSize: 11, fontWeight: '900' },
+  statsRow: { flexDirection: 'row', gap: 9, marginBottom: 25 },
+  statBox: {
+    flex: 1, backgroundColor: COLORS.card, padding: 14,
+    borderRadius: 12, alignItems: 'center'
+  },
+  statNumber: { color: COLORS.red, fontSize: 23, fontWeight: '900' },
+  statLabel: { color: COLORS.muted, fontSize: 9, marginTop: 5 },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 13
+  },
+  sectionTitle: { color: COLORS.white, fontSize: 14, fontWeight: '900', marginBottom: 13 },
+  seeAll: { color: COLORS.red, fontSize: 10, fontWeight: 'bold' },
+  tournamentCard: {
+    backgroundColor: COLORS.card, borderRadius: 14,
+    padding: 16, marginBottom: 13,
+    borderWidth: 1, borderColor: COLORS.border
+  },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modeBadge: { backgroundColor: '#35202A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
+  modeText: { color: '#FF8290', fontSize: 9, fontWeight: 'bold' },
+  status: { fontSize: 9, fontWeight: 'bold' },
+  tournamentName: { color: COLORS.white, fontSize: 17, fontWeight: 'bold', marginTop: 15 },
+  gameName: { color: COLORS.muted, fontSize: 9, marginTop: 5, letterSpacing: 1 },
+  cardInfo: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    marginTop: 20, paddingBottom: 15,
+    borderBottomWidth: 1, borderColor: COLORS.border
+  },
+  infoLabel: { color: COLORS.muted, fontSize: 9, letterSpacing: 1 },
+  prize: { color: COLORS.gold, fontSize: 20, fontWeight: '900', marginTop: 5 },
+  infoValue: { color: COLORS.white, fontSize: 12, fontWeight: 'bold', marginTop: 7 },
+  slotRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 13 },
+  slotText: { color: COLORS.muted, fontSize: 10 },
+  viewText: { color: COLORS.red, fontSize: 9, fontWeight: 'bold' },
+  progressBg: { height: 4, backgroundColor: '#303443', borderRadius: 5, marginTop: 10 },
+  progressFill: { height: 4, backgroundColor: COLORS.red, borderRadius: 5 },
+  pageTit-
 title: Introduction to development builds
 sidebar_title: Introduction and setup
 description: Learn how to create a development build in your Expo project and why use a development build instead of Expo Go.
